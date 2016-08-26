@@ -280,10 +280,71 @@ Step three we need to update our `config/database.php` so it can take in these s
         ],
 ```
 
-Replacing the default `mysql` settings with the above.
+Replacing the default `mysql` settings with the above will help us swap out the settings as needed for CodeShip and it's database work.
 
 
 Finally Step four
+
+Scripts to setup CodeShip for testing.
+
+When setting up CodeShip you will have a "Setup Commands" window. In here I add `ci/setup.sh`
+
+![ci setup](https://dl.dropboxusercontent.com/s/hmgo5onyrjfcz7t/ci_setup.png?dl=0) 
+
+I want to put this into a script so I can run it later on when I SSH into the server to show how to troubleshoot and issue.
+
+I make the folder `ci` and then in there `setup.sh`
+
+This will look like 
+
+
+```
+#!/bin/sh
+
+###
+# This is thanks to CodeShip Docs
+# But I wanted a newer version of Selenium
+###
+
+SELENIUM_VERSION=${SELENIUM_VERSION:="2.53.1"}
+SELENIUM_PORT=${SELENIUM_PORT:="4444"}
+SELENIUM_OPTIONS=${SELENIUM_OPTIONS:=""}
+SELENIUM_WAIT_TIME=${SELENIUM_WAIT_TIME:="10"}
+
+set -e
+
+MINOR_VERSION=${SELENIUM_VERSION%.*}
+CACHED_DOWNLOAD="${HOME}/cache/selenium-server-standalone-${SELENIUM_VERSION}.jar"
+
+wget --continue --output-document "${CACHED_DOWNLOAD}" "http://selenium-release.storage.googleapis.com/${MINOR_VERSION}/selenium-server-standalone-${SELENIUM_VERSION}.jar"
+java -jar "${CACHED_DOWNLOAD}" -port "${SELENIUM_PORT}" ${SELENIUM_OPTIONS} 2>&1 &
+sleep "${SELENIUM_WAIT_TIME}"
+echo "Selenium ${SELENIUM_VERSION} is now ready to connect on port ${SELENIUM_PORT}..."
+
+
+## Now we are ready to talk to Selenium let's start the Application server
+
+cp .env.codeship .env
+php artisan serve --port=8080 -n -q &
+sleep 3
+```
+
+Basically I get Selenium standalone, then run it. After that I copy over the `.env.codeship` file to `.env` so the server will run with that one so it will line up with the `behat.yml` I am using.  If I did not do this there would be no `.env` sinc this is not part of Git, and I need to make sure the env settings are correct for CodeShip.
+
+
+Now to make sure the CodeShip Test Pipeline is set.
+
+![test pipeline](https://dl.dropboxusercontent.com/s/zql8ha5pee5ic0o/test_pipeline.png?dl=0)
+
+Here I do a migration and seed, but typically I would leave the seed out and let each Behat Feature set up the state of the application the way it needs it.
+In this case I will keep it simple.
+
+And I am running Behat with the CodeShip profile.
+
+
+
+During the setup in `CodeShip` we need to put this `.env.codeship` file in place so that when we start the server we will
+
 
 ----- scraps ---
 
