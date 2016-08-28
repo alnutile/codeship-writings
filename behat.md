@@ -1,5 +1,4 @@
-
-# Behat testing using headless Chrome
+# Laravel and Behat Using Selenium and Headless Chrome
 
 This blog post is a look at using CodeShip to do Selenium and Headless Chrome testing which is key for interacting with JavaScript features on your site. But also I hope to show how to troubleshoot the rare moments when there is an issue on the CI but not on your local build by using CodeShips super helpful SSH feature and Saucelabs remote connections.  All code can be seen [here](https://github.com/alnutile/codeship-behat)
 
