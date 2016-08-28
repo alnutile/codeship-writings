@@ -1,35 +1,22 @@
 
-  *  Laravel and getting started
-        *  Link off to other post they made?
-  *  Start basic app and branch off to Codeship
-  *  Scripting it in their ui then not using their info
-  *  Starting the server
-  *  Https and not just be careful
-  *  Example assets true
-  *  .env.codeship and copy over these settings
-  *  Note how it differs from local
-  *  Ssh in to fix 
-  *  Png output 
-  *  And when all else fails saucelabs
-  *  Behat running domain level
-  *  Behat.yml settings
-  *  Behat JavaScript tag
-  *  HappyPath later schedule a daily
-  
+# Behat testing using headless Chrome
 
+This blog post is a look at using CodeShip to do Selenium and Headless Chrome testing which is key for interacting with JavaScript features on your site. But also I hope to show how to troubleshoot the rare moments when there is an issue on the CI but not on your local build by using CodeShips super helpful SSH feature and Saucelabs remote connections.  All code can be seen [here](https://github.com/alnutile/codeship-behat)
 
-The goal of this post will to not only get you going for Selenium and Headless Chrome, which is key for JavaScript based testing, but also how to trouble shoot issues that are not happening on your local build but on the CI using CodeShips super helpful SSH feature and Saucelabs remote connections.
-
-First we need to setup CodeShip to even setup and test our app. You can see this at a previous Laravel Centric post here https://blog.codeship.com/getting-started-laravel-codeship/
+First we need to setup CodeShip to test our app with every git push. You can see this at a previous Laravel Centric post [here](https://blog.codeship.com/getting-started-laravel-codeship/)
 
 At this point you should have things working and PHPUnit running. We are going to then add Behat to this.
 
-Getting started really comes down to having this work on your local environment. In this post there will be a Host (Mac) and a Guest (Linux) thanks to Homestead. I will list at the end of this article some links for Windows as well.
+Getting started really comes down to having this work on your local environment. In this post there will be a Host (Mac) and a Guest (Linux), thanks to [Homestead](https://laravel.com/docs/5.3/homestead). I will list at the end of this article have some links for Windows as well.
+
+Here is look at this Host Guest workflow.
 
 ![behat drives selenium](https://dl.dropboxusercontent.com/s/gsl0ube5ybxtpaq/behat_drives.png?dl=0)
 
 
-First part of this setup is based on this Laravel oriented library started by [Laracast's](https://laracasts.com/) creator Jeffrey Way [https://github.com/laracasts/Behat-Laravel-Extension](https://github.com/laracasts/Behat-Laravel-Extension).  After you follow the install steps you will have a working version of Behat that integrates with your Laravel in some nice ways including Migrations and Transactions hooks.
+## Setting up your Local Environment
+
+The first part of this setup is based on a Laravel Behat oriented library started by [Laracast's](https://laracasts.com/) creator Jeffrey Way [https://github.com/laracasts/Behat-Laravel-Extension](https://github.com/laracasts/Behat-Laravel-Extension).  After you follow the install steps there you will have a working version of Behat that integrates with your Laravel application in some nice ways including Migrations and Transactions hooks.
 
 
 But even after the above I need to take it one step further I need to get Selenium setup both as a server and a Mink Extension.
@@ -39,11 +26,16 @@ But even after the above I need to take it one step further I need to get Seleni
 composer require "behat/mink-selenium2-driver":"^1.3"
 ```
 
-This will get you going for Mink and Selenium.
+This will get you going for Mink and Selenium Driver.
 
-Now for Selenium, this will be a bit harder but really not much. Remember this is on your Host, the above was in your guest. Basically if you visit [here](https://www.npmjs.com/package/selenium-standalone) you can easily install Selenium on any Host OS. For me and my Mac I use `brew` to set up NodeJS and from there I follow those 3 steps to get going. When I am done I have a terminal in the background just running Selenium.
 
-Now for my Behat test. At this point this is my `behat.yml` in the root of my Application. 
+Now for the Selenium server, this will be a bit harder but really not much. Remember this is on your Host, the above was in your Guest. Basically if you visit [here](https://www.npmjs.com/package/selenium-standalone) you can easily install Selenium on any Host OS. For me, and my Mac I use `brew` to set up NodeJS and from there I follow those 3 steps to get going. When I am done I have a terminal in the background just running Selenium.
+
+![terminal selenium](https://dl.dropboxusercontent.com/s/9656ag3f2u2t9im/teminal.png?dl=0)
+
+## Now for my first Behat test
+
+At this point I need t make a `behat.yml` in the root of my application and fill it with the following.
 
 
 ```
@@ -65,18 +57,20 @@ default:
         browser_name: chrome
 ```
 
-We will build off this in a moment to add CodeShip. But for now I have one suite to get started `user_auth` and one profile `default`. I have the `base_url` for the local site `https://codeship-behat.dev` and for now it is using my Applications `.env` file `# env_path: .env.behat`. This will change for the CodeShip profile.
+We will build off this in a moment to add CodeShip. But for now I have one **suite** to get started `user_auth` and one **profile** `default`. I have the `base_url` for the local site `https://codeship-behat.dev` and for now it is using my applications `.env` file as seen on this line in the `# env_path: .env.behat`. This will change for the CodeShip profile.
 
-Notice too I used the ip of my Host to talk to Selenium from inside my guest `http://192.168.10.1:4444/wd/hub` one more thing that will change for the CodeShip Profile.
+Notice too I used the ip of my Host to talk to Selenium from inside my Guest `http://192.168.10.1:4444/wd/hub` one more thing that will change for the CodeShip Profile.
+
+
+## Initialize Behat and Writing a Test
 
 So now to prove all of this is working I start by running 
-
 
 ```
 vendor/bin/behat --init
 ```
 
-If you did not do this in the Behat-Laravel-Extension docs. Then 
+If you did not do this in the Behat-Laravel-Extension docs already. Either way you now have a `features` folder in the root of your application and in there a `bootstrap` folder and finally, in there, a `FeatureContext.php` file. 
 
 
 Now to make my `feature` file `features/user_auth.feature` 
@@ -84,7 +78,7 @@ Now to make my `feature` file `features/user_auth.feature`
 ![feature file](https://dl.dropboxusercontent.com/s/cjtu1616oog86zr/feature_file.png?dl=0)
 
 
-And from here we need to fill in the details 
+And in there I need to fill in the details 
 
 
 ```
@@ -101,7 +95,7 @@ Feature: User Login Area
 
 ```
 
-Focusing on the `@happy_path` for now we tag it `@user_auth` so I know it is part of the Suite as seen in the `behat.yml` file above `filters: { tags: '@user_auth' }`. I could have used folders for this but chose tags.
+Focusing on the `@happy_path` for now we tag it `@user_auth` so I know it is part of the Suite as seen in the `behat.yml` file above `filters: { tags: '@user_auth' }`. I could have used folders to organize my suites but chose tags for now.
 
 Now if I run 
 
@@ -110,7 +104,7 @@ Now if I run
 vendor/bin/behat --suite user_auth --init
 ```
  
-I get a file `features/bootstrap/UserAuthenticationContext.php` that is pretty empty and needs to be told to extend `Mink Context`
+I get a file `features/bootstrap/UserAuthenticationContext.php` that is pretty empty and needs to be told to extend `MinkContext`
 
 So I just need to change the "extends" section so it looks like this
 
@@ -140,13 +134,13 @@ class UserAuthenticationContext extends MinkContext implements Context, SnippetA
 
 ```
 
-Alright so we now want to take our `feature` which has some custom steps in there and have Behat stub these out in the `features/bootstrap/UserAuthenticationContext.php`
+Alright, so we now want to take our `feature` which has some custom steps in there and have Behat stub these out in the `features/bootstrap/UserAuthenticationContext.php`
 
 ```
 vendor/bin/behat --suite user_auth --append-snippets
 ```
 
-Now that file will be full of stubbed out tests that have the annotations to connect to your steps and then the a `PendingException` to let you know there is more work to do.
+Now that file will be full of stubbed out functions that have the annotations to connect to your feature's steps that throw a `PendingException` to let you know there is more work to do.
 
 Keep in mind `Then I should see "You are logged in!"` in this example is a Mink related step so there is nothing else I need to do but `And I fill in the form with my username and password and submit the form` is custom so I need to fill in some code there.
 
@@ -162,7 +156,7 @@ Keep in mind `Then I should see "You are logged in!"` in this example is a Mink 
     }
 ```
  
-Now our test is ready, I am talking to the dom and if I remove the `@javascript` from that test and run 
+Now our test is ready to run, I am talking to the DOM in the above steps, and if I remove the `@javascript` from that test and run 
 
 
 ```
@@ -171,19 +165,35 @@ vendor/bin/behat --suite user_auth
 
 ![without js](https://dl.dropboxusercontent.com/s/ukjszl74q54n8kn/with_out_javascript.png?dl=0)
 
+We are not talking to Selenium but to [BrowerKit](http://symfony.com/doc/current/components/browser_kit.html) note how fast it it! 
+
 And add the tag back and run again 
 
 ![with javascript](https://dl.dropboxusercontent.com/s/3umwq03a8opfc1d/with_javascript.png?dl=0)
 
 
-So you see it is 0m7.64s with `@javascript` and 0m2.09s without! So be careful to only use `@javascript` when really needed.
+>So be careful to only use `@javascript` when really needed
+
+So you see it is 0m7.64s with `@javascript` and 0m2.09s without! So be careful to only use `@javascript` when really needed e.g when the page you are testing has JavaScript that you are focusing on. For example my Behat test can have two Scenarios and one has `@javascritp` and one does not. or the entire `feature` can be marked `@javascript` if needed.
+
+```
+@javascript
+Feature: User Login Area
+  User can log into the site
+  As an anonymous user
+  So that they can see secured parts of the site
+```
 
 
-So now are test is passing locally let's get to CodeShip.
+So now the test is passing locally let's get to CodeShip.
 
-This will take 4 steps
 
-Step one is to add a profile to `behat.yml` for CodeShip that looks like this
+## Four Steps to Setup CodeShip for Headless Chrome
+
+
+### Step One: Add a profile to `behat.yml` 
+
+For CodeShip that looks like this
 
 
 ```
@@ -238,7 +248,9 @@ codeship_non_sauce:
 What we are doing is setting up a `.env.codeship` just for CodeShip settings and also setting a new `base_url` as well as using Selenium on `127.0.0.1`
 
 
-Step 2 the `.env.codeship` file. Make that file in the root of your application and add to it this
+### Step Two: The `.env.codeship` file. 
+
+Make that file in the root of your application and add to it this
 
 ```
 APP_ENV=codeship
@@ -260,10 +272,12 @@ MAIL_DRIVER=log
 EXAMPLE_USER_PASSWORD=quahf1Kaib2Ienei
 ```
 
-At this point we set up our environment for the needed database and APP_URL as well as making sure QUEUE is in sync mode and Mail is just log.
+At this point we set up our environment for the needed database and APP_URL as well as making sure QUEUE is in sync mode and MAIL_DRIVER is just log.
  
 
-Step three we need to update our `config/database.php` so it can take in these settings.
+### Step Three: Update our `config/database.php` 
+
+Modify the `config/database.php` too look like this
 
 ```
 
@@ -283,17 +297,17 @@ Step three we need to update our `config/database.php` so it can take in these s
 Replacing the default `mysql` settings with the above will help us swap out the settings as needed for CodeShip and it's database work.
 
 
-Finally Step four
+### Step Four: Scripting the setup of Selenium and Local Laravel Server
 
-Scripts to setup CodeShip for testing.
+Now we need a script to setup CodeShip for testing.
 
-When setting up CodeShip you will have a "Setup Commands" window. In here I add `ci/setup.sh`
+When setting up a CodeShip Project you will have a "Setup Commands" window as seen below. In here I add `ci/setup.sh`
 
 ![ci setup](https://dl.dropboxusercontent.com/s/hmgo5onyrjfcz7t/ci_setup.png?dl=0) 
 
-I want to put this into a script so I can run it later on when I SSH into the server to show how to troubleshoot and issue.
+This is placed into a script for a couple of reasons. One being if I have to SSH into CodeShip to recreate the environment to see what a test is failing I can just do the same one command.
 
-I make the folder `ci` and then in there `setup.sh`
+Next I make the folder `ci` and then in there `setup.sh`
 
 This will look like 
 
@@ -317,7 +331,7 @@ MINOR_VERSION=${SELENIUM_VERSION%.*}
 CACHED_DOWNLOAD="${HOME}/cache/selenium-server-standalone-${SELENIUM_VERSION}.jar"
 
 wget --continue --output-document "${CACHED_DOWNLOAD}" "http://selenium-release.storage.googleapis.com/${MINOR_VERSION}/selenium-server-standalone-${SELENIUM_VERSION}.jar"
-java -jar "${CACHED_DOWNLOAD}" -port "${SELENIUM_PORT}" ${SELENIUM_OPTIONS} 2>&1 &
+java -jar "${CACHED_DOWNLOAD}" -port "${SELENIUM_PORT}" ${SELENIUM_OPTIONS} -log /tmp/sel.log 2>&1 &
 sleep "${SELENIUM_WAIT_TIME}"
 echo "Selenium ${SELENIUM_VERSION} is now ready to connect on port ${SELENIUM_PORT}..."
 
@@ -329,8 +343,7 @@ php artisan serve --port=8080 -n -q &
 sleep 3
 ```
 
-Basically I get Selenium standalone, then run it. After that I copy over the `.env.codeship` file to `.env` so the server will run with that one so it will line up with the `behat.yml` I am using.  If I did not do this there would be no `.env` sinc this is not part of Git, and I need to make sure the env settings are correct for CodeShip.
-
+Basically I download Selenium standalone, then run it. After that I copy over the `.env.codeship` file to `.env` so the server will run with that one so it will line up with the `behat.yml` I am using.  If I did not do this there would be no `.env` since this is not part of Git, and I need to make sure the env settings are correct for CodeShip. Keep in mind I could have placed all of this into the CodeShip Environment UI Settings but as noted I find using this comes in handy when I want to SSH in and setup CodeShip to help troubleshoot an issue.
 
 Now to make sure the CodeShip Test Pipeline is set.
 
@@ -339,82 +352,44 @@ Now to make sure the CodeShip Test Pipeline is set.
 Here I do a migration and seed, but typically I would leave the seed out and let each Behat Feature set up the state of the application the way it needs it.
 In this case I will keep it simple.
 
-And I am running Behat with the CodeShip profile.
+And I am running Behat with the CodeShip profile `codeship_non_sauce`.
 
+During the setup in `CodeShip` we need to put this `.env.codeship` file in place so that when we start the server we will.
 
+That happens in the `ci/setup.sh` script
 
-During the setup in `CodeShip` we need to put this `.env.codeship` file in place so that when we start the server we will
+![copy](https://dl.dropboxusercontent.com/s/rtpcxa39phl0t7y/copy_env_codeship.png?dl=0)
 
+Now we push to Github and...
 
------ scraps ---
+![passing test](https://dl.dropboxusercontent.com/s/irbcolbmthd2ofu/codeship_psasing.png?dl=0)
 
+## What happens when the tests does not pass on CodeShip?
 
-From here I will run a command to get started with an example test. In this example I am going to use Laravel's Auth installation to get going as seen [here](https://laravel.com/docs/5.3/authentication#authentication-quickstart).
+I will give you a real example of a very difficult problem I wrestled with, I had this setting in my blade file
 
-Of course there is no JavaScript here so it is not something I would do this on since JavaScript means slower tests. But for this example we will use it.  So after I follow those instructions and the base instructions for getting a site setup in Homestead I am ready. In this case the domain is https://codeship-behat.dev for my local build.
-
-
-
-
-So now that I know what I want to test I am going to run
 
 ```
-
+    <!-- Scripts -->
+    <script src="{{ asset("/js/app.js", true) }}"></script>
 ```
 
+So locally at `https://codeship-behat.dev` this worked great. But on CodeShip which runs at `http://localhost:8080` e.g. not using http**S** I kept getting a fail.  At that point I could put Saucelabs into the mix to watch the test run, but this was still not enough that is when SauceConnect comes into play and I can interact with the CodeShip server!
 
-[Results with and without JavaScript]
+It was only here I could open the Chrome Console and really see the error message about not being able to connect to `https://localhost:8080`
 
 
+more on this next article....
 
 
 ## Links
 
+[Behat-Laravel-Extension](https://github.com/laracasts/Behat-Laravel-Extension)
+
 [Windows and Selenium](https://alfrednutile.info/posts/181)
 
+[SauceConnect](https://wiki.saucelabs.com/display/DOCS/Setting+Up+Sauce+Connect)
 
+[Selenium Standalone Install](https://www.npmjs.com/package/selenium-standalone)
 
-
-==== notes ====
-
-So with this lesson I will go into an app that is already working and setup on CodeShip.
-
-What I will do is setup a local testing working with Behat mainly focusing on UI testing. In our case I will focus on two types of UI tests one that needs JavaScript and one that does not. Both will work locally and then on CodeShip. One will be quick since it will use Symfony Browser Kit.
-
-First we will just setup the basics for behat using this library https://github.com/laracasts/Behat-Laravel-Extension/tree/master
-
-Once you have a basic install working with this we will then go on to add selenium
-
-```
-composer require "behat/mink-selenium2-driver":"^1.3"
-```
-
-Now let us setup Selenium on our host machine
-
-Java for Mac 
-https://support.apple.com/kb/DL1572?viewlocale=en_US&locale=en_US
-
-https://www.npmjs.com/package/selenium-standalone
-
-I use brew on the Mac for setting up Node. If you are using Ubuntu Linux keep an eye on the odd /usr/bin/nodejs installation that you then have to symlink to /usr/bin/node 
-
-.env.codeship
-database config file
-
-Note the use of 
-
-```
-vendor/bin/behat --init
-```
-
-Setting up URL and Selenium in `behat.yml`
-
-
-Now we have a working test
-
-![](https://dl.dropboxusercontent.com/s/cmwwo8cdci30zn4/working_test.png?dl=0)
-
-And in this case we will have a MySQL database to add to the example. Using the standard Auth setup found in the docs and homestead setup we will put this in place
-
-
-Queue Driver Note sync
+[CodeShip Selenium Install Script](https://github.com/codeship/scripts/blob/master/packages/selenium_server.sh) updated in this post
