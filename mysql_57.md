@@ -1,6 +1,6 @@
 # Using MySQL 5.7 On CodeShip 
 
-For the article I will cover how to use MySQL 5.7 when running CI builds on CodeShip. Why MySQL 5.7? Because it finally has support for JSON queries as such the following
+For this article I will cover how to use MySQL 5.7 when running CI builds on CodeShip. Why MySQL 5.7? Because it finally has support for JSON queries such as the following.
 
 ```
 $results = \App\Example::where("data->foo", "here")->first();
@@ -8,30 +8,31 @@ $results = \App\Example::where("data->foo", "here")->first();
 
 You can read more about this [here](https://laravel.com/docs/5.2/queries#json-where-clauses)
 
-That means I can store JSON data like this
+Basically this means I can store JSON data like this.
 
 ```
 {
   "foo" => "here",
-  "bar" => "baz"
+  "bar" => "baz",
+  "boo" => [1,2,3]
 }
 ```
 
 In one column.
 
-Yes PostgreSQL has been able to do this for some time but for the time being I am still on MySQL and I really wanted to take advantage of this in a current project. In this project I had data coming in from different sources and I did not want to make unique tables and columns to store all the different data.
+Yes PostgreSQL has been able to do this for some time, but for the time being I am still on MySQL and I really wanted to take advantage of this in a current project. In this project I had data coming in from different sources and I did not want to make unique tables and columns to store all the different data.
 
-Instead I could dump it all in a "JSON" field type and query it as above. 
+Instead I could dump it all into a "JSON" field type and query it as above. 
 
-So by the time you are done reading this post you will have a very easy path to setup RDS on AWS, and use MySQL 5.7 from your local to your CI.
+So by the time you are done reading this post you will have a very easy path to setup RDS on AWS, and use MySQL 5.7 from throughout your workflow.
 
 ## Setting up MySQL on AWS Using RDS and CloudFormation
 
-To get started I am going to make an RDS database for CodeShip to connect to. This database will be MySQL 5.7. I will use a [CloudFormation](https://aws.amazon.com/documentation/cloudformation/) script for this. CloudFormation is an amazing way to manage resources on AWS.
+RDS is the "Relational Database Service" for Amazon Web Services (AWS). I am going to take advantage of this service since they deal with all the database updates and the server updates underneath it. This setup will use a [CloudFormation](https://aws.amazon.com/documentation/cloudformation/) script to make it the most painless experience you can imagine for building a resource. CloudFormation is an amazing way to manage resources on AWS.
 
 You can find the script [here](https://github.com/alnutile/codeship-behat/blob/master/ci/cloudformation_database.json)
 
-All you need to do is log into your AWS account, go to CloudFormation and upload this script. You will be prompted with some questions. 
+All you need to do is log into your AWS account, go to CloudFormation area and upload this script. You will be prompted with some questions as seen below. 
 
 ![cloudformation_questions](https://dl.dropboxusercontent.com/s/4jy963s7k9xzsyt/cloudformation_questions.png?dl=0)
 
@@ -41,26 +42,13 @@ In this example I will call the stack `codeship-testing` and give it a really so
 
 Now let's setup our code to use this.
 
-Then in order to make my connection secure from CodeShip to this RDS Instance, I will download the AWS pem file from [here](https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem) and save that to my `ci` folder in the root of my application. 
+First I will download a pem key from AWS for secure communications from [here](https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem) and save that to my `ci` folder in the root of my application. 
 
 ![pem](https://dl.dropboxusercontent.com/s/fa146olgljha6zk/pem.png?dl=0)
 
 Then I will add that to my database settings. `config/database.php`
     
 ```
-    'mysql_testing' => [
-      'driver'    => 'mysql',
-      'host'      => env('DB_HOST', 'localhost'),
-      'database'  => env('DB_DATABASE', 'forge'),
-      'username'  => env('DB_USERNAME', 'forge'),
-      'password'  => env('DB_PASSWORD', ''),
-      'charset'   => 'utf8',
-      'collation' => 'utf8_unicode_ci',
-      'prefix'    => '',
-      'strict'    => false,
-      'options'   => codeship_ssl()
-    ],
-    
     'mysql' => [
       'driver'    => 'mysql',
       'host'      => env('DB_HOST', 'localhost'),
@@ -71,26 +59,21 @@ Then I will add that to my database settings. `config/database.php`
       'collation' => 'utf8_unicode_ci',
       'prefix'    => '',
       'strict'    => false,
+      codeship_ssl()
     ],
 ```
 
-But instead of in the default `mysql` I am going to put this in `mysql_testing`. I am going to suggest this because I am also about to add the pem file `option` as seen here, ONLY if we are on the `codeship` database.
-
-```
-'options'   => codeship_ssl()
-```
-
-by adding the method to the top of this same file 
+Then I add **codeship_ssl()** to the `mysql` **connection**. 
 
 ```
 <?php
 
 if(!function_exists('codeship_ssl')) {
+
     function codeship_ssl() {
         if (env('DB_DATABASE') == 'codeship')
         {
-            $path_to_pem = base_path('/ci/rds-combined-ca-bundle.pem');
-            return [PDO::MYSQL_ATTR_SSL_CA => $path_to_pem];
+            return ['options'   => [PDO::MYSQL_ATTR_SSL_CA => base_path('/ci/rds-combined-ca-bundle.pem')]];
         }
     }
 }
@@ -98,28 +81,13 @@ if(!function_exists('codeship_ssl')) {
 ////
 ```
 
-You can see the full file [here](https://github.com/alnutile/codeship-behat/blob/master/config/database.php).
+Lastly I add this snippet above the `return` statement, on the top of the file. This way we use the pem file `option` ONLY if we are on the `codeship` database. 
 
-Adding it to the `mysql` connection would work but I just did not want to have this extra configuration part of all my non-testing interactions.  
-
-Then I will update my `phpunit.xml` to reference that `connection.
-
-```
-////
-    </filter>
-    <php>
-        <env name="DB_CONNECTION" value="mysql_testing"/>
-        <env name="APP_ENV" value="testing"/>
-        <env name="CACHE_DRIVER" value="array"/>
-        <env name="SESSION_DRIVER" value="array"/>
-        <env name="QUEUE_DRIVER" value="sync"/>
-    </php>
-</phpunit>
-``` 
+You can see the full code example [here](https://github.com/alnutile/codeship-behat/blob/master/config/database.php). 
 
 ## Setting up CodeShip
 
-Now to setup CodeShip so it will have the correct environment settings to trigger us to use the `mysql_testing` connection and the pem file.
+Now to setup CodeShip so it will have the correct environment settings so we use the pem file and the new database name, password, and url.
 
 Here is what our `Environment` settings for CodeShip by the time I am done.
 
@@ -245,7 +213,7 @@ class QueryJsonTest extends TestCase
 ![passing](https://dl.dropboxusercontent.com/s/66dxbeewny73m5k/passing.png?dl=0)
 
 
-That is it. I now can work locally using 5.7 and have CodeShip run our tests with the same version as my local and Production.
+That is it! I now can work locally using MySQL 5.7 and have CodeShip run our tests with the same version as my local and Production.
 
 
 ## References
